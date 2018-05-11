@@ -14,9 +14,17 @@ head(beneficiary)
 beneficiary[,c(2,3)]<-lapply(beneficiary[,c(2,3)],ymd)
 
 #variable 24-32 are cost-related variable, remove since they won't be used in this study
-beneficiary<-beneficiary[,c(1:23,33)]
+#remove column 13:23, as those chronic disease ascertainment not relevant for the study
+#remove column 6:8 for geographic information
+#remove column 9:12 for insurance coverage information, not relevant
+beneficiary<-beneficiary[,c(1:5,33)]
 
-
+#summarise 3 year beneficiary data into one row per individual:
+#summarise death date, if appliable:
+death<-beneficiary%>%filter(!is.na(BENE_DEATH_DT))
+beneficiary<-beneficiary%>%distinct(DESYNPUF_ID,BENE_BIRTH_DT,BENE_SEX_IDENT_CD,BENE_RACE_CD,year)%>%
+                           left_join(death[,c('DESYNPUF_ID','BENE_DEATH_DT')])
+rm(death)
 ############################################################################################################################
 inpatient<-readRDS('../dataset/inpatient.RData')
 head(inpatient)
@@ -78,4 +86,6 @@ carrier<-carrier[,c(1:12,39:51,130:142)]
 prescription<-readRDS('../dataset/prescription.RData')
 prescription$SRVC_DT<-ymd(prescription$SRVC_DT)
 
+#remove leading zeros in drug code:
+prescription$PROD_SRVC_ID<-gsub('^0*','',prescription$PROD_SRVC_ID,perl = T)
 
