@@ -16,7 +16,7 @@ ndc<-readRDS('../dataset/ndc.RData')
 #1. select individuals aged above 40 during their first year in the database:
 beneficiary<-beneficiary%>%group_by(DESYNPUF_ID)%>%
                            mutate(year_entry=min(year),
-                                  age_entry=year_entry-year(BENE_BIRTH_DT))%>%
+                                  age_entry=min(year)-year(BENE_BIRTH_DT))%>%
                            ungroup()
 beneficiary%<>%filter(age_entry>=40)
 
@@ -66,5 +66,30 @@ exclusion2<-prescription%>%filter(PROD_SRVC_ID %in% c(lipid_low$ndc_code,niacin$
                            filter(first_med<ymd('2009-01-01'))
 
 study_population%<>%filter(DESYNPUF_ID %ni% exclusion2$DESYNPUF_ID)
+rm(exclusion,exclusion2,lpl,beneficiary)
+
+#4. exclude individuals with dialysis in previous year before cohort entry:
+
+# dialysis can be ascertained from inpatient, outpatient and carrier procedure code:CPT codes 90935 and 90937
+# 90945, and 90947  HCPCS code Z6042) or icd-9 code: 39.95
+dialysis_icd<-c('3995')
+dialysis_ex<-inpatient_proc%>%filter(proc %in% dialysis_icd,DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
+             left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+             filter(NCH_BENE_DSCHRG_DT<cohort_entry)
+
+#check in outpatient data
+dialysis<-c('90935','90937','90945','90947')
+dialysis_ex2<-outpatient_hcpcs%>%filter(hcpcs %in% dialysis,DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
+              left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+              filter(CLM_THRU_DT<cohort_entry)
+
+dialysis_ex3<-outpatient_proc%>%filter(proc %in% dialysis_icd,DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
+  left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+  filter(CLM_THRU_DT<cohort_entry)
+
+
+study_population<-study_population%>%
+                  filter(DESYNPUF_ID %ni% c(dialysis_ex$DESYNPUF_ID,dialysis_ex2$DESYNPUF_ID,
+                                                               dialysis_ex3$DESYNPUF_ID))
 
 study_population%<>%select(-year,-year_entry)%<>%distinct()

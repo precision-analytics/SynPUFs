@@ -70,16 +70,20 @@ rm(outpatient)
 
 
 ##########################################################################################################################
-carrier_a<-readRDS('../dataset/carrierA.RData')
-carrier_b<-readRDS('../dataset/carrierB.RData')
+#make sure there is enough memory in your computer before loading this data:
 
-#combine carrier datasets into one:
-carrier<-rbind(carrier_a,carrier_b)
-rm(carrier_a,carrier_b)
+carrier<-readRDS('../dataset/carrier.RData')
 
 #remove irrelevant variables:
 carrier<-carrier[,c(1:12,39:51,130:142)]
 
+carrier[,c('CLM_FROM_DT','CLM_THRU_DT')]<-lapply(carrier[,c('CLM_FROM_DT','CLM_THRU_DT')],ymd)
+carrier_icd<-carrier%>%select(c(1:4,starts_with('ICD9'),starts_with('LINE_ICD9')))%>%
+             gather(diag_cat,diag,starts_with('ICD9'),starts_with('LINE_ICD9'),na.rm=T)%>%
+             filter(diag!='')
+carrier_hcpcs<-carrier%>%select(c(1:4,starts_with('HCPCS')))%>%
+               gather(hcpcs_cat,hcpcs,starts_with('HCPCS'),na.rm=T)%>%
+               filter(hcpcs!='')
 
 
 ########################################################################################################
