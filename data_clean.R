@@ -46,7 +46,6 @@ inpatient_proc<-inpatient%>%select(c(1:7,starts_with('ICD9_PRCDR')))%>%
 inpatient_hcpcs<-inpatient%>%select(c(1:7,starts_with('HCPCS')))%>%
                             gather(hcpcs_cat,hcpcs,starts_with('HCPCS'),na.rm=T) 
 #it seems that no hcpcs code is available for inpatient data!!!
-rm(inpatient)
 rm(inpatient_hcpcs)
 summary(inpatient_diag) #confirm the inpatient data is available from 2008-01-01 to 2010-12-30 (discharge date)
 ###########################################################################################################################
@@ -66,7 +65,7 @@ outpatient_proc<-outpatient%>%select(c(1:4,21,starts_with('ICD9_PRCDR')))%>%
 outpatient_hcpcs<-outpatient%>%select(c(1:4,21,starts_with('HCPCS')))%>%
                  gather(hcpcs_cat,hcpcs,starts_with('HCPCS'),na.rm=T)%>%
                  filter(hcpcs!='')
-rm(outpatient)
+
 
 
 ##########################################################################################################################
