@@ -4,8 +4,9 @@
 *.Ruserdata
 *.zip
 # Data 
-*/dataset/
+dataset/
 
 or-plot-function.R
 
+aws-get-data.R
 
