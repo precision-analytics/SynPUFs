@@ -1,0 +1,11 @@
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
+*.zip
+# Data 
+*/dataset/
+
+or-plot-function.R
+
+
