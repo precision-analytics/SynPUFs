@@ -1,12 +1,12 @@
 #identify covariates for propensity score calculation/matching:
-#search in inpatient_diag and outpatient_diag before individuals' entry into cohort
+#search in inpatient_diag and outpatient_diag 6 months before individuals' entry into cohort
 
 #function for defining covariate:
 define_cov<-function(df,covariate,date){
   df%>%filter(grepl(paste(covariate,collapse='|'),diag)|
                 grepl(paste(covariate,collapse='|'),ADMTNG_ICD9_DGNS_CD))%>%
     left_join(study_population)%>%
-    filter(!!date<cohort_entry & !!date>cohort_entry-365)%>%
+    filter(!!date<cohort_entry & !!date>cohort_entry-180)%>%
     distinct(DESYNPUF_ID)%>%
     pull()
 }
@@ -52,7 +52,7 @@ injury<-unique(c(define_cov(inpatient_diag,injury,quo(NCH_BENE_DSCHRG_DT)),
 #remove last two digit of drug code for package difference
 drugcount<-prescription%>%filter(DESYNPUF_ID %in% study_population$DESYNPUF_ID)%>%
            left_join(study_population[c('DESYNPUF_ID','cohort_entry')])%>%
-           filter(cohort_entry>SRVC_DT & SRVC_DT>cohort_entry-365)%>%
+           filter(cohort_entry>SRVC_DT & SRVC_DT>cohort_entry-180)%>%
            mutate(drug_code=substr(PROD_SRVC_ID,1,nchar(PROD_SRVC_ID)-2))%>%
            group_by(DESYNPUF_ID)%>%
            summarise(n_drug=n_distinct(drug_code))%>%
@@ -66,7 +66,7 @@ drugcount<-prescription%>%filter(DESYNPUF_ID %in% study_population$DESYNPUF_ID)%
 visit<-outpatient_hcpcs%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID,
                                  hcpcs=='99213')%>%
                           left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
-                          filter(CLM_THRU_DT<cohort_entry & CLM_THRU_DT>cohort_entry-365)%>%
+                          filter(CLM_THRU_DT<cohort_entry & CLM_THRU_DT>cohort_entry-180)%>%
                           group_by(DESYNPUF_ID)%>%
                           summarise(n_visit=n_distinct(CLM_ID))%>%
                           filter(n_visit>=4)%>%
@@ -76,7 +76,7 @@ visit<-outpatient_hcpcs%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID,
 #hospitalization
 hosp<-inpatient%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
                   left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
-                  filter(NCH_BENE_DSCHRG_DT<cohort_entry & NCH_BENE_DSCHRG_DT>cohort_entry-365)%>%
+                  filter(NCH_BENE_DSCHRG_DT<cohort_entry & NCH_BENE_DSCHRG_DT>cohort_entry-180)%>%
                   distinct(DESYNPUF_ID)%>%
                   pull()
 
@@ -87,7 +87,7 @@ lab<-as.character(c(80047:89398))
 lab<-outpatient_hcpcs%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID,
                                hcpcs %in% lab)%>%
                         left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
-                        filter(CLM_THRU_DT>cohort_entry-365 & CLM_THRU_DT < cohort_entry)%>%
+                        filter(CLM_THRU_DT>cohort_entry-180 & CLM_THRU_DT < cohort_entry)%>%
                         distinct(DESYNPUF_ID)%>%
                         pull()
 

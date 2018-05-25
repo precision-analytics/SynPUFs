@@ -56,17 +56,17 @@ study_population<-beneficiary%>%
   filter(!is.na(cohort_entry))%>%
   distinct()
 
-#4. exclude individuals whose first lipid-lowering or niacin prescription was within 365 days from 2008-01-01:
+#4. exclude individuals whose first lipid-lowering or niacin prescription was 6 months from 2008-01-01:
 
 #from prescription data, select individuals who had a prescription of lipid-lowering drug or niacin 
-#select individuals whose first prescription is within one year from 2018-01-01:
+#select individuals whose first prescription is within 6 months from 2018-01-01:
 exclusion2<-prescription%>%filter(PROD_SRVC_ID %in% c(lipid_low$ndc_code,niacin$ndc_code))%>%
                            group_by(DESYNPUF_ID)%>%
                            summarise(first_med=min(SRVC_DT))%>%
-                           filter(first_med<ymd('2009-01-01'))
+                           filter(first_med<ymd('2008-06-30'))
 
 study_population%<>%filter(DESYNPUF_ID %ni% exclusion2$DESYNPUF_ID)
-rm(exclusion,exclusion2,lpl,beneficiary)
+rm(exclusion2,lpl,beneficiary)
 
 #5. exclude individuals with dialysis in previous year before cohort entry:
 

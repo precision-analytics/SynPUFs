@@ -177,21 +177,21 @@ study_population<-beneficiary%>%
 ```
 
 
-##### Step 4: exclude individuals whose first lipid-lowering or niacin prescription was within 365 days from 2008-01-01:
+##### Step 4: exclude individuals whose first lipid-lowering or niacin prescription was within 6 months from 2008-01-01:
 ```{r,message=F, warning=F}
 #from prescription data, select individuals who had a prescription of lipid-lowering drug or niacin 
 #select individuals whose first prescription is within one year from 2018-01-01:
 exclusion2<-prescription%>%filter(PROD_SRVC_ID %in% c(lipid_low$ndc_code,niacin$ndc_code))%>%
                            group_by(DESYNPUF_ID)%>%
                            summarise(first_med=min(SRVC_DT))%>%
-                           filter(first_med<ymd('2009-01-01'))
+                           filter(first_med<ymd('2008-06-30'))
 
 study_population%<>%filter(DESYNPUF_ID %ni% exclusion2$DESYNPUF_ID)
-rm(exclusion,exclusion2,beneficiary)
+rm(exclusion2,beneficiary)
 ```
 
 
-##### Step 5: exclude individuals with dialysis in previous year before cohort entry:
+##### Step 5: exclude individuals with dialysis in previous years before cohort entry:
 ```{r,message=F, warning=F}
 # dialysis can be ascertained from inpatient, outpatient and carrier procedure code:CPT codes 90935 and 90937
 # 90945, and 90947  HCPCS code Z6042) or icd-9 code: 39.95
@@ -292,6 +292,14 @@ statin_cat<-statin_cat%>%
 
 statin_user<-statin_user%>%left_join(statin_cat[,c(1,4)],by=c('PROD_SRVC_ID'='ndc_code')) 
 
+#define statin level at first dispensing event (instead of cumulatively as done before):
+first_statin<-statin_user%>%group_by(DESYNPUF_ID)%>%
+                            filter(SRVC_DT==min(SRVC_DT))%>%
+                            ungroup()%>%
+                            select(DESYNPUF_ID,level)%>%
+                            rename(initial_level=level)
+
+
 #calculate cumulative duration of exposure:
 statin_user<-statin_user%>%group_by(DESYNPUF_ID)%>%
                            mutate(duration=sum(DAYS_SUPLY_NUM))%>%
@@ -317,7 +325,8 @@ statin_level<-statin_user%>%group_by(DESYNPUF_ID)%>%
 statin_user$level[statin_user$DESYNPUF_ID %in% statin_level$DESYNPUF_ID]<-'high'
 
 statin_user<-statin_user%>%distinct(DESYNPUF_ID,level,duration)%>%
-             left_join(statin_recency[,c('DESYNPUF_ID','recency')])
+             left_join(statin_recency[,c('DESYNPUF_ID','recency')])%>%
+             left_join(first_statin)
 
 #bind exposure table to study_population:
 study_population%<>%left_join(statin_user)
@@ -327,14 +336,14 @@ head(study_population)
 
 ### Define covariates for propensity score calculation:
 For simplicity, only 9 covariates were included in the calculation of propensity score
-All covariates were ascertained before cohort entry
+All covariates were ascertained within 6 months before cohort entry
 ```{r,message=F, warning=F}
 #function for defining covariate:
 define_cov<-function(df,covariate,date){
   df%>%filter(grepl(paste(covariate,collapse='|'),diag)|
                 grepl(paste(covariate,collapse='|'),ADMTNG_ICD9_DGNS_CD))%>%
     left_join(study_population)%>%
-    filter(!!date<cohort_entry & !!date>cohort_entry-365)%>%
+    filter(!!date<cohort_entry & !!date>cohort_entry-180)%>%
     distinct(DESYNPUF_ID)%>%
     pull()
 }
@@ -371,7 +380,7 @@ injury<-unique(c(define_cov(inpatient_diag,injury,quo(NCH_BENE_DSCHRG_DT)),
 #remove last two digit of drug code for package difference
 drugcount<-prescription%>%filter(DESYNPUF_ID %in% study_population$DESYNPUF_ID)%>%
            left_join(study_population[c('DESYNPUF_ID','cohort_entry')])%>%
-           filter(cohort_entry>SRVC_DT & SRVC_DT>cohort_entry-365)%>%
+           filter(cohort_entry>SRVC_DT & SRVC_DT>cohort_entry-180)%>%
            mutate(drug_code=substr(PROD_SRVC_ID,1,nchar(PROD_SRVC_ID)-2))%>%
            group_by(DESYNPUF_ID)%>%
            summarise(n_drug=n_distinct(drug_code))%>%
@@ -385,7 +394,7 @@ drugcount<-prescription%>%filter(DESYNPUF_ID %in% study_population$DESYNPUF_ID)%
 visit<-outpatient_hcpcs%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID,
                                  hcpcs=='99213')%>%
                           left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
-                          filter(CLM_THRU_DT<cohort_entry & CLM_THRU_DT>cohort_entry-365)%>%
+                          filter(CLM_THRU_DT<cohort_entry & CLM_THRU_DT>cohort_entry-180)%>%
                           group_by(DESYNPUF_ID)%>%
                           summarise(n_visit=n_distinct(CLM_ID))%>%
                           filter(n_visit>=4)%>%
@@ -395,7 +404,7 @@ visit<-outpatient_hcpcs%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID,
 #hospitalization
 hosp<-inpatient%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
                   left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
-                  filter(NCH_BENE_DSCHRG_DT<cohort_entry & NCH_BENE_DSCHRG_DT>cohort_entry-365)%>%
+                  filter(NCH_BENE_DSCHRG_DT<cohort_entry & NCH_BENE_DSCHRG_DT>cohort_entry-180)%>%
                   distinct(DESYNPUF_ID)%>%
                   pull()
 
@@ -406,7 +415,7 @@ lab<-as.character(c(80047:89398))
 lab<-outpatient_hcpcs%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID,
                                hcpcs %in% lab)%>%
                         left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
-                        filter(CLM_THRU_DT>cohort_entry-365 & CLM_THRU_DT < cohort_entry)%>%
+                        filter(CLM_THRU_DT>cohort_entry-180 & CLM_THRU_DT < cohort_entry)%>%
                         distinct(DESYNPUF_ID)%>%
                         pull()
 
