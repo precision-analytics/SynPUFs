@@ -33,7 +33,7 @@ library(dplyr)
 library(tidyr)
 library(xlsx)
 
-beneficiary<-readRDS('../dataset/beneficiary.RData')
+beneficiary<-readRDS('beneficiary.RData')
 
 #print out first 5 observations from beneficiary dataset
 head(beneficiary)
@@ -66,7 +66,7 @@ head(beneficiary)
 
 ##### Inpatient data
 ```{r}
-inpatient<-readRDS('../dataset/inpatient.RData')
+inpatient<-readRDS('inpatient.RData')
 head(inpatient)
 ```
 
@@ -96,7 +96,7 @@ head(inpatient_proc)
 ##### Outpatient data
 The same type of reformating was performed on outpatient data, except that there is an extra table for hcpcs code in the outpatient data.
 ```{r}
-outpatient<-readRDS('../dataset/outpatient.RData')
+outpatient<-readRDS('outpatient.RData')
 head(outpatient)
 outpatient[,4:5]<-lapply(outpatient[,4:5],ymd)
 outpatient<-outpatient[,c(1:2,4:5,13:28,31:76)]
@@ -120,7 +120,7 @@ head(outpatient_hcpcs)
 ##### Prescription data
 The NDC (national drug code) was reformatted to match the style from NDC code table downloaded from FDA
 ```{r}
-prescription<-readRDS('../dataset/prescription.RData')
+prescription<-readRDS('prescription.RData')
 prescription$SRVC_DT<-ymd(prescription$SRVC_DT)
 
 #remove leading zeros in drug code:
@@ -151,10 +151,10 @@ beneficiary<-beneficiary%>%filter(DESYNPUF_ID %ni% id_exclude$DESYNPUF_ID)%>%
 ##### Step 3: select statin users from the population
 ```{r,message=F, warning=F}
 #load NDC code table:
-ndc<-readRDS('../dataset/ndc.RData')
+ndc<-readRDS('ndc.RData')
 
 #load lipid lowering drug list (ATC: C10)
-lipid_low<-readRDS('../dataset/lipid_low.RData')
+lipid_low<-readRDS('lipid_low.RData')
 
 #find out the NDC codes for those drugs and niacins:
 lipid_low<-ndc%>%filter(grepl(paste(lipid_low$desc,collapse = '|'),NONPROPRIETARYNAME))
@@ -441,8 +441,7 @@ assign_cova<-function(df,covariate,covariate_name){
 
 
 covariates<-list(ckd,hpt,hpc,hf,pvd,injury,drugcount,visit,hosp,lab)
-covariate_name<-c('ckd','hypertension','hypercholesterol','heart.failure','PVD','injury.poison','drug.dispense','doctor.visit',
-                  'hospital','lab.test')
+covariate_name<-c('ckd','hypertension','hypercholesterol','heart.failure','PVD','injury.poison','drug.dispense','doctor.visit','hospital','lab.test')
 
 for (i in seq_along(covariate_name)){
   study_population<-assign_cova(study_population,covariates[[i]],covariate_name[i])
