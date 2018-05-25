@@ -43,7 +43,7 @@ lipid_low%<>%filter(nchar(code)==7)
 lipid_low<-ndc%>%filter(grepl(paste(lipid_low$desc,collapse = '|'),NONPROPRIETARYNAME))
 niacin<-ndc%>%filter(NONPROPRIETARYNAME=='niacin')
 
-# include statin users and define cohort entry date:
+#3. include statin users and define cohort entry date:
 statin<-lipid_low%>%filter(grepl('statin',NONPROPRIETARYNAME))
 
 statin_user<-prescription%>%filter(PROD_SRVC_ID %in% statin$ndc_code)%>%
@@ -56,7 +56,7 @@ study_population<-beneficiary%>%
   filter(!is.na(cohort_entry))%>%
   distinct()
 
-#3. exclude individuals whose first lipid-lowering or niacin prescription was within 365 days from 2008-01-01:
+#4. exclude individuals whose first lipid-lowering or niacin prescription was within 365 days from 2008-01-01:
 
 #from prescription data, select individuals who had a prescription of lipid-lowering drug or niacin 
 #select individuals whose first prescription is within one year from 2018-01-01:
@@ -68,7 +68,7 @@ exclusion2<-prescription%>%filter(PROD_SRVC_ID %in% c(lipid_low$ndc_code,niacin$
 study_population%<>%filter(DESYNPUF_ID %ni% exclusion2$DESYNPUF_ID)
 rm(exclusion,exclusion2,lpl,beneficiary)
 
-#4. exclude individuals with dialysis in previous year before cohort entry:
+#5. exclude individuals with dialysis in previous year before cohort entry:
 
 # dialysis can be ascertained from inpatient, outpatient and carrier procedure code:CPT codes 90935 and 90937
 # 90945, and 90947  HCPCS code Z6042) or icd-9 code: 39.95

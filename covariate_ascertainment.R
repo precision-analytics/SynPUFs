@@ -4,7 +4,7 @@
 #function for defining covariate:
 define_cov<-function(df,covariate,date){
   df%>%filter(grepl(paste(covariate,collapse='|'),diag)|
-                grepl(paste(ckd,collapse='|'),ADMTNG_ICD9_DGNS_CD))%>%
+                grepl(paste(covariate,collapse='|'),ADMTNG_ICD9_DGNS_CD))%>%
     left_join(study_population)%>%
     filter(!!date<cohort_entry & !!date>cohort_entry-365)%>%
     distinct(DESYNPUF_ID)%>%
