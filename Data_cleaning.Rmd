@@ -1,0 +1,450 @@
+---
+title: "Data cleaning"
+author: "Precision Analytics"
+date: "May 24, 2018"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: lumen
+    highlight: tango
+    code_folding: show
+---
+
+```{r setup, include=FALSE,message=F, warning=F}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Download dataset and unzip compressed files
+All SynPUFs raw dataset can be accessed through 'https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DESample01.html', you can either download the datasets manually or write a script in R to do this automatically. Included in the file data_import.R is a script to download and unzip all the files in sample01, which includes a sample dataset for inpatient, outpatient, prescription,carrier and beneficiary data between 2008-2010.
+
+After running the script, a folder called 'dataset' will be created within your working directory which includes 8 zipped files and 8 csv files (3.25GB). These files can be deleted once all csv files are saved as RDS files to save memory.
+
+### Cleaning and reformating datasets
+Before trying to extract any information from the datasets, it is necessary to understand the structure of each dataset and reformat some of them.
+
+##### Beneficiary data
+Load the beneficiary dataset and print out the first 5 observations
+```{r,message=F, warning=F}
+library(bit64)
+library(magrittr)
+library(lubridate)
+library(dplyr)
+library(tidyr)
+library(xlsx)
+
+beneficiary<-readRDS('../dataset/beneficiary.RData')
+
+#print out first 5 observations from beneficiary dataset
+head(beneficiary)
+```
+
+convert date variable into date format:
+```{r}
+beneficiary[,c(2,3)]<-lapply(beneficiary[,c(2,3)],ymd)
+```
+
+For the purpose of our study, not every variable is useful, to make data manipulation faster and easier, remove some of the columns of the dataset
+```{r}
+#variable 24-32 are cost-related variable, remove since they won't be used in this study
+#remove column 13:23, as those chronic disease ascertainment not relevant for the study
+#remove column 6:8 for geographic information
+#remove column 9:12 for insurance coverage information, not relevant
+beneficiary<-beneficiary[,c(1:5,33)]
+```
+
+The original beneficiary data came as one dataset per year, to consolidate the information into one person per observation with birthdate, death date, sex, race, SynPUF ID
+```{r,warning=F, message=F}
+#summarise 3 year beneficiary data into one row per individual:
+#summarise death date, if appliable:
+death<-beneficiary%>%filter(!is.na(BENE_DEATH_DT))
+beneficiary<-beneficiary%>%distinct(DESYNPUF_ID,BENE_BIRTH_DT,BENE_SEX_IDENT_CD,BENE_RACE_CD,year)%>%
+                           left_join(death[,c('DESYNPUF_ID','BENE_DEATH_DT')])
+rm(death)
+head(beneficiary)
+```
+
+##### Inpatient data
+```{r}
+inpatient<-readRDS('../dataset/inpatient.RData')
+head(inpatient)
+```
+
+Format the date variables and remove variables related to cost
+```{r}
+inpatient[,c(4,5,12,19)]<-lapply(inpatient[,c(4,5,12,19)],ymd)
+#remove variable that are not useful for the study
+inpatient<-inpatient[,c(1,2,4:5,12,13,19,21:81)]
+```
+
+The inpatient data was originally organized in a wide format, ie. each row includes information for a single record of hospitalization with multiple columns for diagnostic code, procedure code,etc. To ease later data manipulation, the dataset needs to transformed into long format, ie each row contains single record of diagnostic code, date of admission/discharge etc.
+
+The inpatient dataset was separated into two table: one for diagnostic code and the other for procedure code
+```{r}
+inpatient_diag<-inpatient%>%select(1:17)%>%
+                            gather(diag_cat,diag,starts_with('ICD9_DGNS'),na.rm=T)%>%
+                            filter(diag!='') #remove blank cell and NAs 
+
+inpatient_proc<-inpatient%>%select(c(1:7,starts_with('ICD9_PRCDR')))%>%
+                            gather(proc_cat,proc,starts_with('ICD9_PRCDR'),na.rm=T)%>%
+                            filter(proc!='')
+
+head(inpatient_diag)
+head(inpatient_proc)
+```
+
+##### Outpatient data
+The same type of reformating was performed on outpatient data, except that there is an extra table for hcpcs code in the outpatient data.
+```{r}
+outpatient<-readRDS('../dataset/outpatient.RData')
+head(outpatient)
+outpatient[,4:5]<-lapply(outpatient[,4:5],ymd)
+outpatient<-outpatient[,c(1:2,4:5,13:28,31:76)]
+
+outpatient_diag<-outpatient%>%select(c(1:14,21))%>%
+                              gather(diag_cat,diag,starts_with('ICD9_DGNS'),na.rm=T)%>%
+                              filter(diag!='')    
+
+outpatient_proc<-outpatient%>%select(c(1:4,21,starts_with('ICD9_PRCDR')))%>%
+                              gather(proc_cat,proc,starts_with('ICD9_PRCDR'),na.rm=T)%>%
+                              filter(proc!='')
+outpatient_hcpcs<-outpatient%>%select(c(1:4,21,starts_with('HCPCS')))%>%
+                 gather(hcpcs_cat,hcpcs,starts_with('HCPCS'),na.rm=T)%>%
+                 filter(hcpcs!='')
+
+head(outpatient_diag)
+head(outpatient_proc)
+head(outpatient_hcpcs)
+```
+
+##### Prescription data
+The NDC (national drug code) was reformatted to match the style from NDC code table downloaded from FDA
+```{r}
+prescription<-readRDS('../dataset/prescription.RData')
+prescription$SRVC_DT<-ymd(prescription$SRVC_DT)
+
+#remove leading zeros in drug code:
+prescription$PROD_SRVC_ID<-gsub('^0*','',prescription$PROD_SRVC_ID,perl = T)
+
+```
+
+### Study population selection
+##### Step 1: select individuals aged above 40 during their first year in the database:
+```{r}
+beneficiary<-beneficiary%>%group_by(DESYNPUF_ID)%>%
+                           mutate(year_entry=min(year),
+                                  age_entry=min(year)-year(BENE_BIRTH_DT))%>%
+                           ungroup()
+beneficiary%<>%filter(age_entry>=40)
+```
+
+##### Step2: exclude individuals with less than 1 year medical information: (died within one year)
+```{r}
+beneficiary<-beneficiary%>%mutate(fu=as.numeric(BENE_DEATH_DT-ymd('2008-01-01')))
+                          
+id_exclude<-beneficiary%>%filter(fu<365)%>%distinct(DESYNPUF_ID)
+`%ni%`<-Negate('%in%')
+beneficiary<-beneficiary%>%filter(DESYNPUF_ID %ni% id_exclude$DESYNPUF_ID)%>%
+                           select(-fu)
+```
+
+##### Step 3: select statin users from the population
+```{r,message=F, warning=F}
+#load NDC code table:
+ndc<-readRDS('../dataset/ndc.RData')
+
+#load lipid lowering drug list (ATC: C10)
+lipid_low<-readRDS('../dataset/lipid_low.RData')
+
+#find out the NDC codes for those drugs and niacins:
+lipid_low<-ndc%>%filter(grepl(paste(lipid_low$desc,collapse = '|'),NONPROPRIETARYNAME))
+niacin<-ndc%>%filter(NONPROPRIETARYNAME=='niacin')
+
+#find out the NDC codes for statins
+statin<-lipid_low%>%filter(grepl('statin',NONPROPRIETARYNAME))
+
+#from prescription dataset, find all statin users between 2008-2010
+statin_user<-prescription%>%filter(PROD_SRVC_ID %in% statin$ndc_code)%>%
+  group_by(DESYNPUF_ID)%>%
+  summarise(cohort_entry=min(SRVC_DT)) #cohort entry was defined as the first statin dispensing event
+
+#define study population from inclusion criteria: select statin users from beneficiary dataset
+study_population<-beneficiary%>%
+  left_join(statin_user)%>%
+  filter(!is.na(cohort_entry))%>%
+  distinct()
+
+```
+
+
+##### Step 4: exclude individuals whose first lipid-lowering or niacin prescription was within 365 days from 2008-01-01:
+```{r,message=F, warning=F}
+#from prescription data, select individuals who had a prescription of lipid-lowering drug or niacin 
+#select individuals whose first prescription is within one year from 2018-01-01:
+exclusion2<-prescription%>%filter(PROD_SRVC_ID %in% c(lipid_low$ndc_code,niacin$ndc_code))%>%
+                           group_by(DESYNPUF_ID)%>%
+                           summarise(first_med=min(SRVC_DT))%>%
+                           filter(first_med<ymd('2009-01-01'))
+
+study_population%<>%filter(DESYNPUF_ID %ni% exclusion2$DESYNPUF_ID)
+rm(exclusion,exclusion2,beneficiary)
+```
+
+
+##### Step 5: exclude individuals with dialysis in previous year before cohort entry:
+```{r,message=F, warning=F}
+# dialysis can be ascertained from inpatient, outpatient and carrier procedure code:CPT codes 90935 and 90937
+# 90945, and 90947  HCPCS code Z6042) or icd-9 code: 39.95
+dialysis_icd<-c('3995')
+dialysis_ex<-inpatient_proc%>%filter(proc %in% dialysis_icd,DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
+             left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+             filter(NCH_BENE_DSCHRG_DT<cohort_entry)
+
+#check in outpatient data
+dialysis<-c('90935','90937','90945','90947')
+dialysis_ex2<-outpatient_hcpcs%>%filter(hcpcs %in% dialysis,DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
+              left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+              filter(CLM_THRU_DT<cohort_entry)
+
+dialysis_ex3<-outpatient_proc%>%filter(proc %in% dialysis_icd,DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
+  left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+  filter(CLM_THRU_DT<cohort_entry)
+
+
+study_population<-study_population%>%
+                  filter(DESYNPUF_ID %ni% c(dialysis_ex$DESYNPUF_ID,dialysis_ex2$DESYNPUF_ID,
+                                                               dialysis_ex3$DESYNPUF_ID))
+#clean up columns in the study_population data:
+study_population%<>%select(-year,-year_entry)%<>%distinct()
+
+head(study_population)
+summary(study_population)
+```
+
+### Outcome ascertainment
+The outcome of the study is hospitalization of acute kidney injury, which can be ascertained from inpatient data
+```{r,message=F, warning=F}
+acute.kidney<-c('584','5845','5846','5847','5848','5849')
+
+case<-inpatient_diag%>%filter(DESYNPUF_ID %in% study_population$DESYNPUF_ID)%>%
+                       filter(diag %in% acute.kidney|ADMTNG_ICD9_DGNS_CD %in% acute.kidney)
+
+#define index date as the hospital discharge date for first-time diagnosis:
+case<-case%>%group_by(DESYNPUF_ID)%>%summarise(index_date=min(NCH_BENE_DSCHRG_DT))
+
+#remove individuals with acute kidney injury before cohort entry:
+case<-case%>%left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+            filter(cohort_entry<index_date)
+#merge index_date to study_population:
+study_population%<>%left_join(case[,1:2])
+study_population$outcome<-ifelse(is.na(study_population$index_date),0,1)
+
+
+#define study exit date for controls:
+#end of follow-up defined as date of death, 24 months after statin treatment or 2010-12-31
+study_population<-study_population%>%
+                  mutate(exit_date=case_when(!is.na(index_date)~index_date,
+                                             !is.na(BENE_DEATH_DT)~BENE_DEATH_DT,
+                                             TRUE~ ymd('2010-12-31')))
+study_population$M24<-study_population$cohort_entry+730
+study_population$exit_date<-if_else(study_population$M24<=study_population$cohort_entry,
+                                  study_population$M24,study_population$exit_date)
+#clean up columns:
+study_population%<>%select(-M24,-index_date)
+
+head(study_population)
+```
+
+### Exposure ascertainment
+```{r,message=F, warning=F}
+#define low/high potency statin treatment:
+#subset prescription information between entry and exit date:
+statin_user<-prescription%>%filter(DESYNPUF_ID %in% study_population$DESYNPUF_ID,
+                                   PROD_SRVC_ID %in% statin$ndc_code)
+statin_user<-left_join(statin_user,study_population[,c('DESYNPUF_ID','cohort_entry','exit_date')])%>%
+             filter(SRVC_DT>=cohort_entry,SRVC_DT<=exit_date)
+
+#map dosage to prescription:
+statin_cat<-statin%>%
+            filter(ndc_code %in% statin_user$PROD_SRVC_ID)%>%
+            select(ndc_code,NONPROPRIETARYNAME,ACTIVE_NUMERATOR_STRENGTH)
+
+#deal with drugs with multiple ingredients:
+multi_med<-statin_cat%>%filter(grepl(';',ACTIVE_NUMERATOR_STRENGTH))%>%
+                        mutate(NONPROPRIETARYNAME=gsub('and',';',NONPROPRIETARYNAME))%>%
+                        separate_rows(NONPROPRIETARYNAME,ACTIVE_NUMERATOR_STRENGTH,sep=';')%>%
+                        filter(grepl('statin',NONPROPRIETARYNAME))
+
+statin_cat<-statin_cat%>%filter(ndc_code %ni% multi_med$ndc_code)%>%
+                         rbind(multi_med)
+rm(multi_med)
+
+#create high/low potency level of statins:
+#Definition:
+#high potency:
+#rosuvastatin>=20mg;simvastatin>=40 mg
+statin_cat$ACTIVE_NUMERATOR_STRENGTH<-as.integer(statin_cat$ACTIVE_NUMERATOR_STRENGTH)
+statin_cat<-statin_cat%>%
+            mutate(level=case_when(grepl('rosuvastatin',NONPROPRIETARYNAME)&ACTIVE_NUMERATOR_STRENGTH>=20~ 'high',
+                                   grepl('simvastatin',NONPROPRIETARYNAME)&ACTIVE_NUMERATOR_STRENGTH>=40 ~ 'high',
+                                   TRUE ~ 'low'))
+
+
+statin_user<-statin_user%>%left_join(statin_cat[,c(1,4)],by=c('PROD_SRVC_ID'='ndc_code')) 
+
+#calculate cumulative duration of exposure:
+statin_user<-statin_user%>%group_by(DESYNPUF_ID)%>%
+                           mutate(duration=sum(DAYS_SUPLY_NUM))%>%
+                           ungroup()
+#categorize duration into three categories: <-120, 121-365, 366-730:
+statin_user$duration<-cut(statin_user$duration,breaks=c(0,120,365,730,Inf),labels=c('Below 120','121-365','366-730','Above 730'))
+
+
+#define current user or past user: 
+#current user defined as The end date of last dispense of statin was within 120 days of the index date(study end date)
+statin_recency<-statin_user%>%
+                group_by(DESYNPUF_ID)%>%
+                filter(SRVC_DT==max(SRVC_DT))%>%
+                mutate(recency=ifelse(SRVC_DT+120+DAYS_SUPLY_NUM<=exit_date,'past','current'))%>%
+                ungroup()
+
+#for individuals who received both high and low dose of statin in past or current category, the exposure was categorized as high:
+#if two level of statin potency exists in a patient, recode the level to high
+statin_level<-statin_user%>%group_by(DESYNPUF_ID)%>%
+              summarise(n_level=n_distinct(level))%>%
+              filter(n_level>1)
+
+statin_user$level[statin_user$DESYNPUF_ID %in% statin_level$DESYNPUF_ID]<-'high'
+
+statin_user<-statin_user%>%distinct(DESYNPUF_ID,level,duration)%>%
+             left_join(statin_recency[,c('DESYNPUF_ID','recency')])
+
+#bind exposure table to study_population:
+study_population%<>%left_join(statin_user)
+
+head(study_population)
+```
+
+### Define covariates for propensity score calculation:
+For simplicity, only 9 covariates were included in the calculation of propensity score
+All covariates were ascertained before cohort entry
+```{r,message=F, warning=F}
+#function for defining covariate:
+define_cov<-function(df,covariate,date){
+  df%>%filter(grepl(paste(covariate,collapse='|'),diag)|
+                grepl(paste(covariate,collapse='|'),ADMTNG_ICD9_DGNS_CD))%>%
+    left_join(study_population)%>%
+    filter(!!date<cohort_entry & !!date>cohort_entry-365)%>%
+    distinct(DESYNPUF_ID)%>%
+    pull()
+}
+
+#use data source: inpatient and outpatient diagnostic code
+#hypertensive disease
+hpt<-c('^401\\d{1}','^402\\d{,2}','^403\\d{,2}','^404\\d{,2}','^405\\d{,2}')
+hpt<-unique(c(define_cov(inpatient_diag,hpt,quo(NCH_BENE_DSCHRG_DT)),
+              define_cov(outpatient_diag,hpt,quo(CLM_THRU_DT))))
+
+#hyperchloesterolemia
+hpc<-c('^272\\d{1}')
+hpc<-unique(c(define_cov(inpatient_diag,hpc,quo(NCH_BENE_DSCHRG_DT)),
+              define_cov(outpatient_diag,hpc,quo(CLM_THRU_DT))))
+
+#peripheral vascular disease
+pvd<-c('^433\\d{,2}')
+pvd<-unique(c(define_cov(inpatient_diag,pvd,quo(NCH_BENE_DSCHRG_DT)),
+              define_cov(outpatient_diag,pvd,quo(CLM_THRU_DT))))
+
+#heart failure
+hf<-c('^428\\d{,2}')
+hf<-unique(c(define_cov(inpatient_diag,hf,quo(NCH_BENE_DSCHRG_DT)),
+             define_cov(outpatient_diag,hf,quo(CLM_THRU_DT))))
+
+#injury and poisoning
+injury<-paste0('^',as.character(c(800:999)),'\\d{,2}')
+injury<-unique(c(define_cov(inpatient_diag,injury,quo(NCH_BENE_DSCHRG_DT)),
+             define_cov(outpatient_diag,injury,quo(CLM_THRU_DT))))
+
+#number of physician visits:
+
+#greater than 4 distinct drug (not including dosage change):
+#remove last two digit of drug code for package difference
+drugcount<-prescription%>%filter(DESYNPUF_ID %in% study_population$DESYNPUF_ID)%>%
+           left_join(study_population[c('DESYNPUF_ID','cohort_entry')])%>%
+           filter(cohort_entry>SRVC_DT & SRVC_DT>cohort_entry-365)%>%
+           mutate(drug_code=substr(PROD_SRVC_ID,1,nchar(PROD_SRVC_ID)-2))%>%
+           group_by(DESYNPUF_ID)%>%
+           summarise(n_drug=n_distinct(drug_code))%>%
+           filter(n_drug>4)%>%
+           distinct(DESYNPUF_ID)%>%
+           pull()
+
+
+#greater than 4 physician visit (outpatient):
+#hcpcs code 99213 used to define middle office or other outpatient established office patient visit
+visit<-outpatient_hcpcs%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID,
+                                 hcpcs=='99213')%>%
+                          left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+                          filter(CLM_THRU_DT<cohort_entry & CLM_THRU_DT>cohort_entry-365)%>%
+                          group_by(DESYNPUF_ID)%>%
+                          summarise(n_visit=n_distinct(CLM_ID))%>%
+                          filter(n_visit>=4)%>%
+                          distinct(DESYNPUF_ID)%>%
+                          pull()
+
+#hospitalization
+hosp<-inpatient%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID)%>%
+                  left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+                  filter(NCH_BENE_DSCHRG_DT<cohort_entry & NCH_BENE_DSCHRG_DT>cohort_entry-365)%>%
+                  distinct(DESYNPUF_ID)%>%
+                  pull()
+
+#laboratory test:
+#laboratory testing can be ascertained from outpatient service hcpcs code
+#hcpcs Code range (80047-89398)
+lab<-as.character(c(80047:89398))
+lab<-outpatient_hcpcs%>%filter(DESYNPUF_ID%in% study_population$DESYNPUF_ID,
+                               hcpcs %in% lab)%>%
+                        left_join(study_population[,c('DESYNPUF_ID','cohort_entry')])%>%
+                        filter(CLM_THRU_DT>cohort_entry-365 & CLM_THRU_DT < cohort_entry)%>%
+                        distinct(DESYNPUF_ID)%>%
+                        pull()
+
+```
+
+For subgroup analysis, chronic kidney disease history was also ascertained 
+```{r}
+#code for chronic kidney disease
+ckd<-c('^585\\d{1}','\\b586\\b','^403\\d{1}1','^404\\d{1}2','^404\\d{1}3','^582\\d{,2}',
+       '^583\\d{,1}','\\b587\\b','^588\\d{,1}')
+
+  ckd<-unique(c(define_cov(inpatient_diag,ckd,quo(NCH_BENE_DSCHRG_DT)),
+              define_cov(outpatient_diag,ckd,quo(CLM_THRU_DT))))
+```
+
+Finally, add columns of covariates to the study_population dataset
+```{r}
+#create new columns in the study population dataset for all covariates:
+assign_cova<-function(df,covariate,covariate_name){
+  df2<-mutate(df, !!covariate_name:=ifelse(study_population$DESYNPUF_ID %in% covariate,1,0))
+  return(df2)
+}
+
+
+covariates<-list(ckd,hpt,hpc,hf,pvd,injury,drugcount,visit,hosp,lab)
+covariate_name<-c('ckd','hypertension','hypercholesterol','heart.failure','PVD','injury.poison','drug.dispense','doctor.visit',
+                  'hospital','lab.test')
+
+for (i in seq_along(covariate_name)){
+  study_population<-assign_cova(study_population,covariates[[i]],covariate_name[i])
+}
+
+rm(covariates,covariate_name,ckd,hpt,hpc,hf,pvd,injury,drugcount,visit,hosp,lab)
+
+```
+
+Cleaned table for propensity score calculation and matching:
+```{r}
+head(study_population)
+```
+
