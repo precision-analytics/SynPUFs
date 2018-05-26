@@ -34,6 +34,13 @@ statin_cat<-statin_cat%>%
 
 statin_user<-statin_user%>%left_join(statin_cat[,c(1,4)],by=c('PROD_SRVC_ID'='ndc_code')) 
 
+#define statin level at first dispensing event (instead of cumulatively as done before):
+first_statin<-statin_user%>%group_by(DESYNPUF_ID)%>%
+                            filter(SRVC_DT==min(SRVC_DT))%>%
+                            ungroup()%>%
+                            select(DESYNPUF_ID,level)%>%
+                            rename(initial_level=level)
+
 #calculate cumulative duration of exposure:
 statin_user<-statin_user%>%group_by(DESYNPUF_ID)%>%
                            mutate(duration=sum(DAYS_SUPLY_NUM))%>%
@@ -59,7 +66,10 @@ statin_level<-statin_user%>%group_by(DESYNPUF_ID)%>%
 statin_user$level[statin_user$DESYNPUF_ID %in% statin_level$DESYNPUF_ID]<-'high'
 
 statin_user<-statin_user%>%distinct(DESYNPUF_ID,level,duration)%>%
-             left_join(statin_recency[,c('DESYNPUF_ID','recency')])
+             left_join(statin_recency[,c('DESYNPUF_ID','recency')])%>%
+             left_join(first_statin)
+
+
 
 #bind exposure table to study_population:
 study_population%<>%left_join(statin_user)
