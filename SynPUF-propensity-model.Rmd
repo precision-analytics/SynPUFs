@@ -227,10 +227,13 @@ model.compare$Model = factor(model.compare$Model,levels(factor(model.compare$Mod
 
 
 ```{r Plot-models, echo = FALSE}
+
+model.compare$X = c(3,2,1)
+
 ggplot(data = model.compare, aes(y = OR, colour = Model )) + 
         geom_hline(yintercept = 1, colour = grey(1/2)) + 
         coord_flip() + 
-        geom_pointrange(aes(x = Variable, y = OR, ymin = Lower.CI, 
+        geom_pointrange(aes(x = X, y = OR, ymin = Lower.CI, 
                             ymax = Upper.CI), 
                         lwd = 1/2, position = position_dodge(width = 1/2), 
                         shape = 21, fill = 'WHITE') + 
@@ -238,6 +241,9 @@ ggplot(data = model.compare, aes(y = OR, colour = Model )) +
         labs(y = 'Odds Ratio (95% CI)', 
              x = ' ') + 
         scale_y_continuous(trans = "log", limits = c(0.3, 2), 
-                           breaks = c(0.3, 0.5, 0.7, 0, .5, 1, 1.5, 2))
+                           breaks = c(0.3, 0.5, 0.7, 0, .5, 1, 1.5, 2)) + 
+  theme(axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          axis.title.y=element_blank()) 
 ```
 
