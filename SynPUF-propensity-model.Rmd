@@ -9,7 +9,7 @@ html_document:
 ---
 
 ```{r setup, echo = FALSE}
-pacman::p_load(aws.s3, magrittr, dplyr, MatchIt, ggplot2, plotly, tableone, forcats, tidyr, knitr, kableExtra, gridExtra, tibble, stringr)
+pacman::p_load(aws.s3, magrittr, dplyr, MatchIt, ggplot2, plotly, tableone, forcats, tidyr, knitr, kableExtra, gridExtra, tibble, stringr, markdown)
 
 dat = readRDS('study_population_6m.RData')
 
@@ -44,7 +44,6 @@ logistic.regression.or.ci <-function(regress.out, level = 0.95)
 }
 ```
 
-A total of `r length(dat)`
 
 First select individuals above 40 at the time they first showed up in the dataset; then exclude anyone died within one year; then select individuals with statin prescription after 2009-01-01 (set first prescription date as cohort entry date); then exclude anyone who took lipid-lowering drugs before 2009-01-01; also exclude anyone who had dialysis one year before cohort entry
 
@@ -104,10 +103,8 @@ kable(model$nn)
 
 ```
 
-`r length(model)` were successfully matched with controls
 
-
-### Pruned data frame with 1:1
+### Pruned data
 
 ```{r Create-matched-table1, echo = F, results = 'hide'}
 # Make data frame containing only matched observations
@@ -141,7 +138,7 @@ kable(big.table, digits = 2, align = 'c')
 
 ### Distribution of standardized mean differences before and after matching
 
-```{r, echo = FALSE}
+```{r distribution-plot-matched, echo = FALSE}
 plot.data = big.table %>% 
   gather(key = sample, value = smd, `unmatched sample`:`matched sample`) %>% 
   mutate(sample = factor(sample), 
@@ -157,7 +154,7 @@ ggplot(data = plot.data, aes(x = variable, y = smd, group = sample, color = samp
 
 ### Distribution of propensity scores in matched and unmatched sample
 
-```{r distribution-plot, echo = FALSE}
+```{r distribution-plot-unmatched, echo = FALSE}
 
 prop.total = glm(statin ~ hypertension + hypercholesterol + heart.failure + 
                 injury.poison + hospital + lab.test, family = binomial, data = dat)
@@ -245,5 +242,9 @@ ggplot(data = model.compare, aes(y = OR, colour = Model )) +
   theme(axis.text.y=element_blank(),
           axis.ticks.y=element_blank(),
           axis.title.y=element_blank()) 
+```
+
+```{r knittohtml, echo = FALSE}
+markdownToHTML('SynPUF-propensity-model.md', 'SynPUF-propensity-model.html', options=c("use_xhml"))
 ```
 

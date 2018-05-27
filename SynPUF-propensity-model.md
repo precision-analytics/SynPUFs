@@ -3,8 +3,6 @@ SynPUF-propensity-model
 Erika Braithwaite
 2018-05-23
 
-A total of 23
-
 First select individuals above 40 at the time they first showed up in the dataset; then exclude anyone died within one year; then select individuals with statin prescription after 2009-01-01 (set first prescription date as cohort entry date); then exclude anyone who took lipid-lowering drugs before 2009-01-01; also exclude anyone who had dialysis one year before cohort entry
 
 ### Table 1. Covariate balance in total sample N = 839
@@ -36,9 +34,7 @@ kable(model$nn)
 | Unmatched |     5389|        0|
 | Discarded |        0|        0|
 
-10 were successfully matched with controls
-
-### Pruned data frame with 1:1
+### Pruned data
 
 |                            | low statin | high statin |    SMD    |
 |----------------------------|:----------:|:-----------:|:---------:|
@@ -65,12 +61,14 @@ kable(model$nn)
 
 ### Distribution of standardized mean differences before and after matching
 
-![](SynPUF-propensity-model_files/figure-markdown_github/unnamed-chunk-1-1.png)
+![](SynPUF-propensity-model_files/figure-markdown_github/distribution-plot-matched-1.png)
 
 ### Distribution of propensity scores in matched and unmatched sample
 
-![](SynPUF-propensity-model_files/figure-markdown_github/distribution-plot-1.png)
+![](SynPUF-propensity-model_files/figure-markdown_github/distribution-plot-unmatched-1.png)
 
 ### Outcome models
+
+    ## Warning: Removed 1 rows containing missing values (geom_pointrange).
 
 ![](SynPUF-propensity-model_files/figure-markdown_github/Plot-models-1.png)
