@@ -2,10 +2,9 @@
 title: "SynPUF-propensity-model"
 author: "Erika Braithwaite"
 date: '2018-05-23'
-output: github_document
-html_document:
-    keep_md: yes
-
+output:
+  html_document: default
+  github_document: default
 ---
 
 ```{r setup, echo = FALSE}

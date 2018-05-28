@@ -7,17 +7,136 @@ First select individuals above 40 at the time they first showed up in the datase
 
 ### Table 1. Covariate balance in total sample N = 839
 
-|                            |  low statin | high statin |  SMD  |
-|----------------------------|:-----------:|:-----------:|:-----:|
-| n                          |     6425    |     1036    |       |
-| hypertension = Yes (%)     | 2214 (34.5) |  375 (36.2) | 0.036 |
-| hypercholesterol = Yes (%) | 1607 (25.0) |  285 (27.5) | 0.057 |
-| heart.failure = Yes (%)    |  732 (11.4) |  105 (10.1) | 0.041 |
-| PVD = Yes (%)              |  126 ( 2.0) |  22 ( 2.1)  | 0.011 |
-| injury.poison = Yes (%)    |  991 (15.4) |  167 (16.1) | 0.019 |
-| hospital = Yes (%)         |  947 (14.7) |  171 (16.5) | 0.049 |
-| lab.test = Yes (%)         | 3168 (49.3) |  526 (50.8) | 0.029 |
-
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:center;">
+low statin
+</th>
+<th style="text-align:center;">
+high statin
+</th>
+<th style="text-align:center;">
+SMD
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+n
+</td>
+<td style="text-align:center;">
+6425
+</td>
+<td style="text-align:center;">
+1036
+</td>
+<td style="text-align:center;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hypertension = Yes (%)
+</td>
+<td style="text-align:center;">
+2214 (34.5)
+</td>
+<td style="text-align:center;">
+375 (36.2)
+</td>
+<td style="text-align:center;">
+0.036
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hypercholesterol = Yes (%)
+</td>
+<td style="text-align:center;">
+1607 (25.0)
+</td>
+<td style="text-align:center;">
+285 (27.5)
+</td>
+<td style="text-align:center;">
+0.057
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+heart.failure = Yes (%)
+</td>
+<td style="text-align:center;">
+732 (11.4)
+</td>
+<td style="text-align:center;">
+105 (10.1)
+</td>
+<td style="text-align:center;">
+0.041
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+PVD = Yes (%)
+</td>
+<td style="text-align:center;">
+126 ( 2.0)
+</td>
+<td style="text-align:center;">
+22 ( 2.1)
+</td>
+<td style="text-align:center;">
+0.011
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+injury.poison = Yes (%)
+</td>
+<td style="text-align:center;">
+991 (15.4)
+</td>
+<td style="text-align:center;">
+167 (16.1)
+</td>
+<td style="text-align:center;">
+0.019
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hospital = Yes (%)
+</td>
+<td style="text-align:center;">
+947 (14.7)
+</td>
+<td style="text-align:center;">
+171 (16.5)
+</td>
+<td style="text-align:center;">
+0.049
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+lab.test = Yes (%)
+</td>
+<td style="text-align:center;">
+3168 (49.3)
+</td>
+<td style="text-align:center;">
+526 (50.8)
+</td>
+<td style="text-align:center;">
+0.029
+</td>
+</tr>
+</tbody>
+</table>
 ### Estimate propensity score with nearest neighbor 1:1 matching
 
 ``` r
@@ -27,38 +146,294 @@ model = matchit(statin ~ hypertension + hypercholesterol + heart.failure +
 kable(model$nn)
 ```
 
-|           |  Control|  Treated|
-|-----------|--------:|--------:|
-| All       |     6425|     1036|
-| Matched   |     1036|     1036|
-| Unmatched |     5389|        0|
-| Discarded |        0|        0|
-
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+Control
+</th>
+<th style="text-align:right;">
+Treated
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+All
+</td>
+<td style="text-align:right;">
+6425
+</td>
+<td style="text-align:right;">
+1036
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Matched
+</td>
+<td style="text-align:right;">
+1036
+</td>
+<td style="text-align:right;">
+1036
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Unmatched
+</td>
+<td style="text-align:right;">
+5389
+</td>
+<td style="text-align:right;">
+0
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Discarded
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0
+</td>
+</tr>
+</tbody>
+</table>
 ### Pruned data
 
-|                            | low statin | high statin |    SMD    |
-|----------------------------|:----------:|:-----------:|:---------:|
-| n                          |    1036    |     1036    |           |
-| hypertension = Yes (%)     | 375 (36.2) |  375 (36.2) | &lt;0.001 |
-| hypercholesterol = Yes (%) | 285 (27.5) |  285 (27.5) | &lt;0.001 |
-| heart.failure = Yes (%)    | 105 (10.1) |  105 (10.1) | &lt;0.001 |
-| PVD = Yes (%)              |  12 ( 1.2) |  22 ( 2.1)  |   0.076   |
-| injury.poison = Yes (%)    | 167 (16.1) |  167 (16.1) | &lt;0.001 |
-| hospital = Yes (%)         | 171 (16.5) |  171 (16.5) | &lt;0.001 |
-| lab.test = Yes (%)         | 526 (50.8) |  526 (50.8) | &lt;0.001 |
-
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:center;">
+low statin
+</th>
+<th style="text-align:center;">
+high statin
+</th>
+<th style="text-align:center;">
+SMD
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+n
+</td>
+<td style="text-align:center;">
+1036
+</td>
+<td style="text-align:center;">
+1036
+</td>
+<td style="text-align:center;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hypertension = Yes (%)
+</td>
+<td style="text-align:center;">
+375 (36.2)
+</td>
+<td style="text-align:center;">
+375 (36.2)
+</td>
+<td style="text-align:center;">
+&lt;0.001
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hypercholesterol = Yes (%)
+</td>
+<td style="text-align:center;">
+285 (27.5)
+</td>
+<td style="text-align:center;">
+285 (27.5)
+</td>
+<td style="text-align:center;">
+&lt;0.001
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+heart.failure = Yes (%)
+</td>
+<td style="text-align:center;">
+105 (10.1)
+</td>
+<td style="text-align:center;">
+105 (10.1)
+</td>
+<td style="text-align:center;">
+&lt;0.001
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+PVD = Yes (%)
+</td>
+<td style="text-align:center;">
+16 ( 1.5)
+</td>
+<td style="text-align:center;">
+22 ( 2.1)
+</td>
+<td style="text-align:center;">
+0.043
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+injury.poison = Yes (%)
+</td>
+<td style="text-align:center;">
+167 (16.1)
+</td>
+<td style="text-align:center;">
+167 (16.1)
+</td>
+<td style="text-align:center;">
+&lt;0.001
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hospital = Yes (%)
+</td>
+<td style="text-align:center;">
+171 (16.5)
+</td>
+<td style="text-align:center;">
+171 (16.5)
+</td>
+<td style="text-align:center;">
+&lt;0.001
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+lab.test = Yes (%)
+</td>
+<td style="text-align:center;">
+526 (50.8)
+</td>
+<td style="text-align:center;">
+526 (50.8)
+</td>
+<td style="text-align:center;">
+&lt;0.001
+</td>
+</tr>
+</tbody>
+</table>
 ### Comparing SMD between matched and unmatched sample
 
-|     variable     | unmatched sample | matched sample |
-|:----------------:|:----------------:|:--------------:|
-|   hypertension   |       0.04       |      0.00      |
-| hypercholesterol |       0.06       |      0.00      |
-|   heart.failure  |       0.04       |      0.00      |
-|        PVD       |       0.01       |      0.08      |
-|   injury.poison  |       0.02       |      0.00      |
-|     hospital     |       0.05       |      0.00      |
-|     lab.test     |       0.03       |      0.00      |
-
+<table>
+<thead>
+<tr>
+<th style="text-align:center;">
+variable
+</th>
+<th style="text-align:center;">
+unmatched sample
+</th>
+<th style="text-align:center;">
+matched sample
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;">
+hypertension
+</td>
+<td style="text-align:center;">
+0.04
+</td>
+<td style="text-align:center;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+hypercholesterol
+</td>
+<td style="text-align:center;">
+0.06
+</td>
+<td style="text-align:center;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+heart.failure
+</td>
+<td style="text-align:center;">
+0.04
+</td>
+<td style="text-align:center;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+PVD
+</td>
+<td style="text-align:center;">
+0.01
+</td>
+<td style="text-align:center;">
+0.04
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+injury.poison
+</td>
+<td style="text-align:center;">
+0.02
+</td>
+<td style="text-align:center;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+hospital
+</td>
+<td style="text-align:center;">
+0.05
+</td>
+<td style="text-align:center;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+lab.test
+</td>
+<td style="text-align:center;">
+0.03
+</td>
+<td style="text-align:center;">
+0.00
+</td>
+</tr>
+</tbody>
+</table>
 ### Distribution of standardized mean differences before and after matching
 
 ![](SynPUF-propensity-model_files/figure-markdown_github/distribution-plot-matched-1.png)
@@ -68,7 +443,5 @@ kable(model$nn)
 ![](SynPUF-propensity-model_files/figure-markdown_github/distribution-plot-unmatched-1.png)
 
 ### Outcome models
-
-    ## Warning: Removed 1 rows containing missing values (geom_pointrange).
 
 ![](SynPUF-propensity-model_files/figure-markdown_github/Plot-models-1.png)
