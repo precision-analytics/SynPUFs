@@ -80,7 +80,7 @@ dat  %<>% select(DESYNPUF_ID, sex, race, age_entry, hypertension, hypercholester
 ```
 
 
-### Table 1. Covariate balance in total sample N = 839
+### Table 1. Covariate balance in total sample ```r nrow(dat)```
 
 ```{r Create unmatched table 1, echo = FALSE, results = 'hide'}
 unmatched_table1 = CreateCatTable(strata = 'statin', data = dat, vars = catVars, test = FALSE, smd = T)

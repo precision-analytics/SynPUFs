@@ -5,7 +5,7 @@ Erika Braithwaite
 
 First select individuals above 40 at the time they first showed up in the dataset; then exclude anyone died within one year; then select individuals with statin prescription after 2009-01-01 (set first prescription date as cohort entry date); then exclude anyone who took lipid-lowering drugs before 2009-01-01; also exclude anyone who had dialysis one year before cohort entry
 
-### Table 1. Covariate balance in total sample N = 839
+### Table 1. Covariate balance in total sample `7461`
 
 |                            |  low statin | high statin |  SMD  |
 |----------------------------|:-----------:|:-----------:|:-----:|
@@ -42,7 +42,7 @@ kable(model$nn)
 | hypertension = Yes (%)     | 375 (36.2) |  375 (36.2) | &lt;0.001 |
 | hypercholesterol = Yes (%) | 285 (27.5) |  285 (27.5) | &lt;0.001 |
 | heart.failure = Yes (%)    | 105 (10.1) |  105 (10.1) | &lt;0.001 |
-| PVD = Yes (%)              |  12 ( 1.2) |  22 ( 2.1)  |   0.076   |
+| PVD = Yes (%)              |  13 ( 1.3) |  22 ( 2.1)  |   0.067   |
 | injury.poison = Yes (%)    | 167 (16.1) |  167 (16.1) | &lt;0.001 |
 | hospital = Yes (%)         | 171 (16.5) |  171 (16.5) | &lt;0.001 |
 | lab.test = Yes (%)         | 526 (50.8) |  526 (50.8) | &lt;0.001 |
@@ -54,7 +54,7 @@ kable(model$nn)
 |   hypertension   |       0.04       |      0.00      |
 | hypercholesterol |       0.06       |      0.00      |
 |   heart.failure  |       0.04       |      0.00      |
-|        PVD       |       0.01       |      0.08      |
+|        PVD       |       0.01       |      0.07      |
 |   injury.poison  |       0.02       |      0.00      |
 |     hospital     |       0.05       |      0.00      |
 |     lab.test     |       0.03       |      0.00      |
@@ -68,7 +68,5 @@ kable(model$nn)
 ![](SynPUF-propensity-model_files/figure-markdown_github/distribution-plot-unmatched-1.png)
 
 ### Outcome models
-
-    ## Warning: Removed 1 rows containing missing values (geom_pointrange).
 
 ![](SynPUF-propensity-model_files/figure-markdown_github/Plot-models-1.png)
