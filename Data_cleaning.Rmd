@@ -26,12 +26,8 @@ Before trying to extract any information from the datasets, it is necessary to u
 ##### Beneficiary data
 Load the beneficiary dataset and print out the first 5 observations
 ```{r,message=F, warning=F}
-library(bit64)
-library(magrittr)
-library(lubridate)
-library(dplyr)
-library(tidyr)
-library(xlsx)
+pacman::p_load(bit64, lubridate, magrittr, dplyr, tidyr)
+#library(xlsx)
 
 beneficiary<-readRDS('beneficiary.RData')
 
